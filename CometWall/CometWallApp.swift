@@ -19,7 +19,7 @@ struct CometWallApp: App {
                 Button("Wall") { layout = .wall }.keyboardShortcut("1")
                 Button("Sidebar") { layout = .sidebar }.keyboardShortcut("2")
                 Divider()
-                Button("Edit Panes…") { NSWorkspace.shared.open(PaneStore.configURL) }
+                Button("Edit Panes…") { editPanes() }
                     .keyboardShortcut(",", modifiers: [.command, .shift])
                 Button("Reload Pane List") { store.reload() }
                     .keyboardShortcut("r", modifiers: [.command, .shift])
@@ -248,5 +248,17 @@ struct LoginButton: View {
         } catch {
             self.error = error.localizedDescription
         }
+    }
+}
+
+/// Open the pane list in TextEdit. The default app for .json is often Xcode,
+/// which on a Mac without it installed only offers to download it.
+@MainActor
+private func editPanes() {
+    let config = NSWorkspace.OpenConfiguration()
+    if let textEdit = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.TextEdit") {
+        NSWorkspace.shared.open([PaneStore.configURL], withApplicationAt: textEdit, configuration: config)
+    } else {
+        NSWorkspace.shared.open(PaneStore.configURL)
     }
 }
