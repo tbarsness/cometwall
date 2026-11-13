@@ -50,3 +50,7 @@ you click **Trust this certificate** on that tile's error screen (remembered
 across launches). Every other host gets the normal system check. To make that
 possible for named hosts, the app sets `NSAllowsArbitraryLoadsInWebContent`, so
 only add hosts you control.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
