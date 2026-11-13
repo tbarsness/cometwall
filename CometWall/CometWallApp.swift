@@ -23,6 +23,7 @@ struct CometWallApp: App {
                     .keyboardShortcut(",", modifiers: [.command, .shift])
                 Button("Reload Pane List") { store.reload() }
                     .keyboardShortcut("r", modifiers: [.command, .shift])
+                Button("Unlock Saved Logins") { store.unlockSavedLogins() }
             }
         }
     }
@@ -133,6 +134,7 @@ struct Tile: View {
             HStack(spacing: 10) {
                 Text(pane.name).font(.headline).lineLimit(1)
                 Spacer()
+                LoginButton(pane: pane)
                 Button { store.goHome(pane) } label: { Image(systemName: "house") }.help("Back to start page")
                 Button { store.refresh(pane) } label: { Image(systemName: "arrow.clockwise") }.help("Reload")
                 if showExpand {
@@ -149,6 +151,18 @@ struct Tile: View {
             .contentShape(Rectangle())
             .onTapGesture(count: 2) { if showExpand { toggle() } }
 
+            if store.loginFailed.contains(pane.name) {
+                HStack {
+                    Image(systemName: "key.slash")
+                    Text("Auto-login didn't work. Check the saved password.")
+                    Spacer()
+                    Button("Try again") { store.retryLogin(pane) }
+                }
+                .font(.callout)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(.yellow.opacity(0.25))
+            }
             WebPane(webView: store.webView(for: pane))
                 .overlay {
                     if let error = store.errors[pane.name] {
@@ -185,4 +199,54 @@ struct WebPane: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {}
+}
+
+/// Key button on a tile: save, replace or forget this pane's password.
+struct LoginButton: View {
+    @EnvironmentObject var store: PaneStore
+    let pane: PaneConfig
+    @State private var open = false
+    @State private var password = ""
+    @State private var error: String?
+
+    private var saved: Bool { pane.url.host.map(store.savedLoginHosts.contains) ?? false }
+
+    var body: some View {
+        Button { open.toggle() } label: { Image(systemName: saved ? "key.fill" : "key") }
+            .help(saved ? "Auto-login is on" : "Save a login for auto-login")
+            .popover(isPresented: $open, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Login for \(pane.url.host ?? pane.name)").font(.headline)
+                    Text("Stored in your Keychain. CometWall asks for Touch ID before using it.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    SecureField(saved ? "New password" : "Password", text: $password)
+                        .onSubmit(save)
+                    if let error { Text(error).font(.caption).foregroundStyle(.red) }
+                    HStack {
+                        if saved {
+                            Button("Forget", role: .destructive) {
+                                store.forgetLogin(for: pane)
+                                open = false
+                            }
+                        }
+                        Spacer()
+                        Button("Save", action: save).keyboardShortcut(.defaultAction).disabled(password.isEmpty)
+                    }
+                }
+                .padding()
+                .frame(width: 300)
+            }
+    }
+
+    private func save() {
+        guard !password.isEmpty else { return }
+        do {
+            try store.saveLogin(password, for: pane)
+            password = ""
+            error = nil
+            open = false
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
 }

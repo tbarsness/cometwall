@@ -1,5 +1,8 @@
 import Foundation
 import WebKit
+import os
+
+let autoLoginLog = Logger(subsystem: "com.timbarsness.cometwall", category: "autologin")
 
 struct PaneConfig: Codable, Identifiable, Hashable {
     var id: String { name }
@@ -23,6 +26,13 @@ final class PaneStore: ObservableObject {
     /// Hosts trusted with the in-app "Trust this certificate" button, kept across launches.
     @Published private(set) var userTrustedHosts: Set<String> =
         Set(UserDefaults.standard.stringArray(forKey: "trustedHosts") ?? [])
+    /// Hosts with a saved password, for the key icon on each tile.
+    @Published private(set) var savedLoginHosts: Set<String> = []
+    /// Panes where auto-login gave up after repeated failures, until retried.
+    @Published private(set) var loginFailed: Set<String> = []
+    let credentials = Credentials()
+    private var loginAttempts: [String: [Date]] = [:]
+    private lazy var loginHandler = WeakMessageHandler(self)
     private var views: [String: WKWebView] = [:]
     private var timers: [String: Timer] = [:]
     private let uiDelegate = PopupDelegate()
@@ -62,6 +72,7 @@ final class PaneStore: ObservableObject {
         }
         panes = loaded
         updateTrust()
+        savedLoginHosts = Set(loaded.compactMap(\.url.host).filter(credentials.hasPassword(for:)))
         for pane in loaded { schedule(pane) }
     }
 
@@ -74,6 +85,8 @@ final class PaneStore: ObservableObject {
         config.websiteDataStore = .default() // persists cookies, so logins survive relaunch
         // Some identity providers refuse embedded browsers; present as Safari.
         config.applicationNameForUserAgent = "Version/18.0 Safari/605.1.15"
+        config.userContentController.addUserScript(AutoLogin.watcher)
+        config.userContentController.add(loginHandler, contentWorld: AutoLogin.world, name: AutoLogin.handlerName)
         let v = WKWebView(frame: .zero, configuration: config)
         v.uiDelegate = uiDelegate
         v.navigationDelegate = navDelegate
@@ -95,6 +108,73 @@ final class PaneStore: ObservableObject {
     private func updateTrust() {
         navDelegate.trustedHosts = userTrustedHosts.union(
             panes.filter { $0.trustSelfSigned == true }.compactMap { $0.url.host })
+    }
+
+    // MARK: Auto-login
+
+    func saveLogin(_ password: String, for pane: PaneConfig) throws {
+        guard let host = pane.url.host else { return }
+        try credentials.save(password, for: host)
+        savedLoginHosts.insert(host)
+        retryLogin(pane)
+    }
+
+    func forgetLogin(for pane: PaneConfig) {
+        guard let host = pane.url.host else { return }
+        credentials.forget(host: host)
+        savedLoginHosts.remove(host)
+    }
+
+    /// Clear a failed or declined auto-login and try again on the current page.
+    func retryLogin(_ pane: PaneConfig) {
+        loginFailed.remove(pane.name)
+        loginAttempts[pane.name] = nil
+        credentials.resetDecline()
+        goHome(pane)
+    }
+
+    func unlockSavedLogins() {
+        credentials.resetDecline()
+        loginFailed.removeAll()
+        loginAttempts.removeAll()
+        for pane in panes { goHome(pane) }
+    }
+
+    /// A password field showed up. Fill it only on the pane's own host, and give
+    /// up after two tries in two minutes so a wrong password never loops.
+    func loginPageAppeared(_ message: WKScriptMessage) {
+        let viewName = views.first(where: { $0.value === message.webView })?.key ?? "?"
+        autoLoginLog.notice("password field seen: pane=\(viewName, privacy: .public) origin=\(message.frameInfo.securityOrigin.host, privacy: .public) main=\(message.frameInfo.isMainFrame) saved=\(self.savedLoginHosts.sorted().joined(separator: ","), privacy: .public) failed=\(self.loginFailed.contains(viewName))")
+        guard message.frameInfo.isMainFrame,
+              let view = message.webView,
+              let name = views.first(where: { $0.value === view })?.key,
+              let pane = panes.first(where: { $0.name == name }),
+              let host = pane.url.host,
+              message.frameInfo.securityOrigin.host == host,
+              savedLoginHosts.contains(host),
+              !loginFailed.contains(name) else { return }
+
+        let recent = (loginAttempts[name] ?? []).filter { $0.timeIntervalSinceNow > -120 }
+        if recent.count >= 2 {
+            loginFailed.insert(name)
+            return
+        }
+        loginAttempts[name] = recent + [Date()]
+
+        Task {
+            guard let password = await credentials.password(for: host) else {
+                autoLoginLog.notice("no password released for \(host, privacy: .public) (declined=\(self.credentials.declined))")
+                return
+            }
+            autoLoginLog.notice("filling \(name, privacy: .public)")
+            do {
+                let r = try await view.callAsyncJavaScript(AutoLogin.fill, arguments: ["password": password],
+                                                           in: nil, contentWorld: AutoLogin.world)
+                autoLoginLog.notice("fill result \(String(describing: r), privacy: .public)")
+            } catch {
+                autoLoginLog.error("fill failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
     }
 
     func refresh(_ pane: PaneConfig) { views[pane.name]?.reload() }

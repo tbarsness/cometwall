@@ -7,14 +7,18 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1801BA3FCDD944EBC272C47F /* Credentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7888A58FFF749D6D8BBA0083 /* Credentials.swift */; };
 		81D09F42D3D0B1F2B94E251A /* CometWallApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC698D1C6BCBD8E2020D344F /* CometWallApp.swift */; };
+		BBFEC083D9866DA53F82E028 /* AutoLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E246CD74425FEB556B547A57 /* AutoLogin.swift */; };
 		E84849485FCCDA8561972A2F /* Panes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F3627FAA176EBD0CF683CC6 /* Panes.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		4F3627FAA176EBD0CF683CC6 /* Panes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Panes.swift; sourceTree = "<group>"; };
+		7888A58FFF749D6D8BBA0083 /* Credentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Credentials.swift; sourceTree = "<group>"; };
 		98E5EC02BF9FEF9B21FC05E8 /* CometWall.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CometWall.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AC698D1C6BCBD8E2020D344F /* CometWallApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CometWallApp.swift; sourceTree = "<group>"; };
+		E246CD74425FEB556B547A57 /* AutoLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoLogin.swift; sourceTree = "<group>"; };
 		E69467EE57124F7EA5FA83D5 /* CometWall.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CometWall.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -30,8 +34,10 @@
 		6763593D9B7E7297A27ADD31 /* CometWall */ = {
 			isa = PBXGroup;
 			children = (
+				E246CD74425FEB556B547A57 /* AutoLogin.swift */,
 				E69467EE57124F7EA5FA83D5 /* CometWall.entitlements */,
 				AC698D1C6BCBD8E2020D344F /* CometWallApp.swift */,
+				7888A58FFF749D6D8BBA0083 /* Credentials.swift */,
 				4F3627FAA176EBD0CF683CC6 /* Panes.swift */,
 			);
 			path = CometWall;
@@ -100,7 +106,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BBFEC083D9866DA53F82E028 /* AutoLogin.swift in Sources */,
 				81D09F42D3D0B1F2B94E251A /* CometWallApp.swift in Sources */,
+				1801BA3FCDD944EBC272C47F /* Credentials.swift in Sources */,
 				E84849485FCCDA8561972A2F /* Panes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

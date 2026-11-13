@@ -42,6 +42,23 @@ example entries.
 
 Layout › Reload Pane List (⇧⌘R) applies changes without restarting.
 
+## Auto-login
+
+Click the key icon on a tile to save that pane's password. It is stored in your
+login Keychain (as "CometWall login (host)") and never written to `panes.json`.
+When the page shows a password field, CometWall asks for Touch ID once per
+launch, then fills the field and presses the login button. It only fills on the
+pane's own host, and it stops after two failed tries in two minutes. If you cancel
+Touch ID, use Layout › Unlock Saved Logins to try again.
+
+Sign the app with your own development certificate so the Keychain recognizes
+it across rebuilds:
+
+```sh
+xcodebuild -scheme CometWall -derivedDataPath build \
+  CODE_SIGN_IDENTITY="Apple Development" DEVELOPMENT_TEAM=<your team id> CODE_SIGN_STYLE=Manual
+```
+
 ## Certificates
 
 KVMs and other LAN appliances usually ship self-signed certificates. CometWall
